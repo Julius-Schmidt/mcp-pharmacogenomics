@@ -1,0 +1,287 @@
+<h1 id="summary">Summary</h1>
+<p><code>pgx-mcp</code> is an open-source Python server implementing the
+Model Context Protocol (MCP) that provides large language models (LLMs)
+with real-time access to five pharmacogenomics databases: PharmGKB <span
+class="citation"
+data-cites="whirl-carrillo2012 whirl-carrillo2021">(Whirl-Carrillo et
+al. 2012, 2021)</span>, ClinVar <span class="citation"
+data-cites="landrum2025">(<span class="nocase">Landrum et al.</span>
+2025)</span>, the Genome Aggregation Database (gnomAD) <span
+class="citation" data-cites="karczewski2020">(<span
+class="nocase">Karczewski et al.</span> 2020)</span>, Open Targets
+Platform <span class="citation" data-cites="ochoa2023">(<span
+class="nocase">Ochoa et al.</span> 2023)</span>, and ClinicalTrials.gov
+<span class="citation" data-cites="zarin2011">(Zarin et al.
+2011)</span>. By exposing ten specialized tools, three reference
+resources, and three prompt templates through a standardized protocol,
+<code>pgx-mcp</code> enables LLM-assisted pharmacogenomic interpretation
+grounded in authoritative, current data sources rather than static
+training knowledge.</p>
+<h1 id="statement-of-need">Statement of Need</h1>
+<p>Pharmacogenomics (PGx) — the study of how genetic variation affects
+drug response — is increasingly central to precision medicine. Clinical
+implementation requires consulting multiple databases to interpret a
+patient’s genotype: ClinVar for variant pathogenicity, PharmGKB for
+drug-gene clinical annotations, Clinical Pharmacogenetics Implementation
+Consortium (CPIC) guidelines for dosing recommendations <span
+class="citation" data-cites="relling2011 relling2020">(Relling and Klein
+2011; Relling et al. 2020)</span>, gnomAD for population allele
+frequencies, and clinical trial registries for relevant ongoing studies.
+Each database has a different interface, API protocol, and data format,
+creating a fragmented workflow that can take 30 minutes or more per
+clinical query <span class="citation" data-cites="farmaki2024">(<span
+class="nocase">Farmaki et al.</span> 2024)</span>.</p>
+<p>Recent benchmarking studies demonstrate that standalone LLMs produce
+unreliable pharmacogenomic recommendations. The PGxQA benchmark,
+comprising over 110,000 PGx questions, found that even the
+best-performing model fell short of clinical standards, with particular
+weaknesses in allele function and diplotype-to-phenotype mapping <span
+class="citation" data-cites="keat2025">(<span class="nocase">Keat et
+al.</span> 2025)</span>. Similarly, evaluations of LLMs against CPIC
+guideline-based recommendations revealed systematic errors when models
+relied solely on training data <span class="citation"
+data-cites="llm_pgx_benchmark2025">(The Pharmacogenomics Journal
+2025)</span>. These findings underscore that LLMs require grounding in
+authoritative databases to produce clinically reliable PGx
+interpretations — retrieval-augmented approaches using LLMs as co-pilots
+alongside structured data have been shown to improve accuracy 1.5-fold
+over human-only workflows in medication safety contexts.</p>
+<p><code>pgx-mcp</code> addresses this gap by serving as a middleware
+integration layer between LLMs and PGx knowledge sources. Using the
+Model Context Protocol <span class="citation"
+data-cites="anthropic_mcp2024">(Anthropic 2024)</span>, an open standard
+for connecting AI systems with external tools and data, the server
+enables any MCP-compatible client (e.g., Claude Desktop, IDE
+integrations) to query all five databases through natural language
+conversation. This collapses the multi-site manual workflow into a
+single interaction backed by live API calls.</p>
+<h1 id="state-of-the-field">State of the Field</h1>
+<p>Existing pharmacogenomics software falls into two categories.
+<strong>Genotyping tools</strong> — including Stargazer <span
+class="citation" data-cites="lee2019">(<span class="nocase">Lee et
+al.</span> 2019)</span>, PyPGx, Aldy <span class="citation"
+data-cites="numanagic2023">(Numanagić et al. 2023)</span>, and
+StellarPGx — call star alleles from next-generation sequencing data.
+<strong>Annotation tools</strong> — notably PharmCAT <span
+class="citation" data-cites="sangkuhl2020 tippenhauer2024">(Sangkuhl et
+al. 2020; <span class="nocase">Tippenhauer et al.</span> 2024)</span> —
+translate genotypes into CPIC guideline-based recommendations from
+locally bundled data. Both categories operate on pre-existing sequencing
+results and do not provide real-time, interactive multi-database
+queries.</p>
+<p>In the MCP ecosystem, BioMCP (GenomOncology, 2025) integrates PubMed,
+ClinicalTrials.gov, and MyVariant.info for oncology-focused literature
+and variant search. However, it does not cover PharmGKB clinical
+annotations, CPIC/DPWG dosing guidelines, gnomAD population frequencies,
+or Open Targets drug-target associations, and is not designed for
+pharmacogenomics workflows.</p>
+<p><code>pgx-mcp</code> occupies a distinct niche: it operates at the
+data-access and interpretation layer rather than the genotyping layer,
+integrates five complementary PGx databases through a single protocol,
+and is purpose-built for pharmacogenomic clinical decision support
+through LLM interaction. It complements rather than replaces genotyping
+pipelines — a clinician using PharmCAT for star-allele calling can use
+<code>pgx-mcp</code> to interactively explore the implications of those
+results across multiple knowledge sources.</p>
+<h1 id="software-design">Software Design</h1>
+<h2 id="architecture">Architecture</h2>
+<p><code>pgx-mcp</code> is built on the MCP Python SDK (FastMCP) and
+communicates via JSON-RPC over stdio transport. The architecture
+comprises three layers:</p>
+<ol type="1">
+<li><p><strong>API clients</strong> (<code>clients/</code>): Five async
+HTTP/GraphQL clients inheriting from a <code>BaseAPIClient</code> that
+provides per-API token-bucket rate limiting, in-memory TTL caching
+(default 1 hour), and exponential backoff retry with 429/5xx handling.
+Each client respects the rate limits of its target API (e.g., 1.5 req/s
+for PharmGKB, 2.5 req/s for ClinVar).</p></li>
+<li><p><strong>MCP tools</strong> (<code>tools/</code>): Ten tool
+functions containing domain logic and Markdown formatting. Tools never
+interact with HTTP directly, receiving initialized clients via the
+server’s lifespan context.</p></li>
+<li><p><strong>Server</strong> (<code>server.py</code>): Manages the
+lifecycle of all API clients through an async context manager,
+initializing connection pools at startup and closing them at
+shutdown.</p></li>
+</ol>
+<h2 id="tools">Tools</h2>
+<p>The server exposes nine database-specific tools and one composite
+tool. Database-specific tools include
+<code>lookup_variant_clinvar</code> and
+<code>search_gene_variants_clinvar</code> for ClinVar queries;
+<code>get_drug_gene_interactions</code>, <code>get_drug_info</code>, and
+<code>search_drug_targets</code> for PharmGKB and Open Targets;
+<code>get_dosing_guideline</code> for CPIC/DPWG guidelines;
+<code>get_variant_frequency</code> for gnomAD population data; and
+<code>search_clinical_trials</code> and <code>get_trial_details</code>
+for ClinicalTrials.gov.</p>
+<p>The composite <code>pgx_consultation</code> tool orchestrates queries
+across all five databases for a given gene-diplotype pair, producing a
+comprehensive clinical report. Each data-gathering step is independently
+error-handled, ensuring partial results are returned even if one source
+is unavailable. illustrates the data flow.</p>
+<figure>
+<img src="architecture.png"
+alt="Data flow in pgx-mcp. The MCP client (e.g., Claude Desktop) communicates with the pgx-mcp server over stdio. The server dispatches queries to five external APIs through rate-limited, cached clients and returns formatted Markdown results." />
+<figcaption aria-hidden="true">Data flow in pgx-mcp. The MCP client
+(e.g., Claude Desktop) communicates with the pgx-mcp server over stdio.
+The server dispatches queries to five external APIs through
+rate-limited, cached clients and returns formatted Markdown
+results.</figcaption>
+</figure>
+<h2 id="resources-and-prompts">Resources and Prompts</h2>
+<p>Three MCP resources provide static reference data: a list of all 19
+CPIC pharmacogenes with associated drugs, parameterized gene references
+with database links, and a server capabilities description. Three prompt
+templates guide multi-step reasoning workflows for patient
+consultations, variant interpretation, and drug PGx reviews.</p>
+<h2 id="configuration-and-deployment">Configuration and Deployment</h2>
+<p>All settings use environment variables with sensible defaults; no
+configuration is required for basic operation. An optional NCBI API key
+triples the ClinVar rate limit. The package is installable via
+<code>pip install pgx-mcp</code> and integrates with Claude Desktop
+through a single JSON configuration entry.</p>
+<h1 id="research-impact-statement">Research Impact Statement</h1>
+<p><code>pgx-mcp</code> enables a new mode of pharmacogenomic data
+exploration where researchers and clinicians interact with five
+authoritative PGx databases through natural language. Given the
+demonstrated limitations of standalone LLMs for PGx tasks <span
+class="citation" data-cites="keat2025 llm_pgx_benchmark2025">(<span
+class="nocase">Keat et al.</span> 2025; The Pharmacogenomics Journal
+2025)</span> and the documented challenges of integrating PGx clinical
+decision support in practice <span class="citation"
+data-cites="farmaki2024">(<span class="nocase">Farmaki et al.</span>
+2024)</span>, tools that ground LLM responses in real-time authoritative
+data are needed. As the first pharmacogenomics-specific MCP server,
+<code>pgx-mcp</code> establishes a foundation for LLM-assisted precision
+medicine workflows and provides infrastructure for future research
+comparing LLM-augmented versus manual PGx interpretation.</p>
+<h1 id="ai-usage-disclosure">AI Usage Disclosure</h1>
+<p>The initial implementation of <code>pgx-mcp</code> was developed with
+assistance from Claude Code (Anthropic), an AI-powered software
+engineering tool. All generated code was reviewed, tested, and validated
+by the author. The LLM assisted with code generation, debugging, and API
+integration; the architectural design, tool selection, and clinical
+domain modeling were directed by the author. This paper was drafted with
+AI assistance and reviewed and edited by the author.</p>
+<h1 id="acknowledgements">Acknowledgements</h1>
+<p>The author thanks the teams behind PharmGKB, ClinVar, gnomAD, Open
+Targets Platform, and ClinicalTrials.gov for maintaining open, publicly
+accessible APIs that make tools like <code>pgx-mcp</code> possible. The
+author also thanks the Anthropic MCP team for the open-source Model
+Context Protocol specification and Python SDK.</p>
+<h1 class="unnumbered" id="references">References</h1>
+<div id="refs" class="references csl-bib-body hanging-indent"
+role="list">
+<div id="ref-anthropic_mcp2024" class="csl-entry" role="listitem">
+Anthropic. 2024. <em>Introducing the <span>Model Context
+Protocol</span></em>. <a
+href="https://www.anthropic.com/news/model-context-protocol"
+class="uri">Https://www.anthropic.com/news/model-context-protocol</a>.
+</div>
+<div id="ref-farmaki2024" class="csl-entry" role="listitem">
+<span class="nocase">Farmaki, A. et al.</span> 2024. <span>“Will
+Precision Medicine Meet Digital Health? <span>A</span> Systematic Review
+of Pharmacogenomics Clinical Decision Support Systems Used in Clinical
+Practice.”</span> <em>OMICS: A Journal of Integrative Biology</em>,
+ahead of print. <a
+href="https://doi.org/10.1089/omi.2024.0131">https://doi.org/10.1089/omi.2024.0131</a>.
+</div>
+<div id="ref-karczewski2020" class="csl-entry" role="listitem">
+<span class="nocase">Karczewski, K. J., L. C. Francioli, G. Tiao, et
+al.</span> 2020. <span>“The Mutational Constraint Spectrum Quantified
+from Variation in 141,456 Humans.”</span> <em>Nature</em> 581 (7809):
+434–43. <a
+href="https://doi.org/10.1038/s41586-020-2308-7">https://doi.org/10.1038/s41586-020-2308-7</a>.
+</div>
+<div id="ref-keat2025" class="csl-entry" role="listitem">
+<span class="nocase">Keat, K. et al.</span> 2025.
+<span>“<span>PGxQA</span>: A Resource for Evaluating <span>LLM</span>
+Performance for Pharmacogenomic <span>QA</span> Tasks.”</span>
+<em>Pacific Symposium on Biocomputing</em> 30: 229–46. <a
+href="https://doi.org/10.1142/9789819807024_0017">https://doi.org/10.1142/9789819807024_0017</a>.
+</div>
+<div id="ref-landrum2025" class="csl-entry" role="listitem">
+<span class="nocase">Landrum, M. J., S. Chitipiralla, G. R. Brown, et
+al.</span> 2025. <span>“<span>ClinVar</span>: Updates to Support
+Classifications of Both Germline and Somatic Variants.”</span>
+<em>Nucleic Acids Research</em> 53 (D1). <a
+href="https://doi.org/10.1093/nar/gkae1090">https://doi.org/10.1093/nar/gkae1090</a>.
+</div>
+<div id="ref-lee2019" class="csl-entry" role="listitem">
+<span class="nocase">Lee, S. B., M. M. Wheeler, K. Patterson, et
+al.</span> 2019. <span>“Stargazer: A Software Tool for Calling Star
+Alleles from Next-Generation Sequencing Data Using <span>CYP2D6</span>
+as a Model.”</span> <em>Genetics in Medicine</em> 21 (2): 361–72. <a
+href="https://doi.org/10.1038/s41436-018-0054-0">https://doi.org/10.1038/s41436-018-0054-0</a>.
+</div>
+<div id="ref-numanagic2023" class="csl-entry" role="listitem">
+Numanagić, I., S. Malikic, V. M. Pratt, S. Chen, Z. Galić, and S. C.
+Sahinalp. 2023. <span>“An Efficient Genotyper and Star-Allele Caller for
+Pharmacogenomics.”</span> <em>Genome Research</em> 33 (1): 61–70. <a
+href="https://doi.org/10.1101/gr.277075.122">https://doi.org/10.1101/gr.277075.122</a>.
+</div>
+<div id="ref-ochoa2023" class="csl-entry" role="listitem">
+<span class="nocase">Ochoa, D., A. Hercules, A. Buniello, D. Suveges, et
+al.</span> 2023. <span>“The Next-Generation <span>Open Targets
+Platform</span>: Reimagined, Redesigned, Rebuilt.”</span> <em>Nucleic
+Acids Research</em> 51 (D1): D1353–59. <a
+href="https://doi.org/10.1093/nar/gkac1046">https://doi.org/10.1093/nar/gkac1046</a>.
+</div>
+<div id="ref-relling2011" class="csl-entry" role="listitem">
+Relling, M. V., and T. E. Klein. 2011. <span>“<span>CPIC</span>:
+<span>Clinical Pharmacogenetics Implementation Consortium</span> of the
+<span>Pharmacogenomics Research Network</span>.”</span> <em>Clinical
+Pharmacology &amp; Therapeutics</em> 89 (3): 464–67. <a
+href="https://doi.org/10.1038/clpt.2010.279">https://doi.org/10.1038/clpt.2010.279</a>.
+</div>
+<div id="ref-relling2020" class="csl-entry" role="listitem">
+Relling, M. V., T. E. Klein, R. S. Gammal, M. Whirl-Carrillo, J. M.
+Hoffman, and K. E. Caudle. 2020. <span>“The <span>Clinical
+Pharmacogenetics Implementation Consortium</span>: 10 Years
+Later.”</span> <em>Clinical Pharmacology &amp; Therapeutics</em> 107:
+171–75. <a
+href="https://doi.org/10.1002/cpt.1651">https://doi.org/10.1002/cpt.1651</a>.
+</div>
+<div id="ref-sangkuhl2020" class="csl-entry" role="listitem">
+Sangkuhl, K., M. Whirl-Carrillo, R. M. Whaley, et al. 2020.
+<span>“Pharmacogenomics Clinical Annotation Tool
+(<span>PharmCAT</span>).”</span> <em>Clinical Pharmacology &amp;
+Therapeutics</em> 107 (1): 203–10. <a
+href="https://doi.org/10.1002/cpt.1568">https://doi.org/10.1002/cpt.1568</a>.
+</div>
+<div id="ref-llm_pgx_benchmark2025" class="csl-entry" role="listitem">
+The Pharmacogenomics Journal. 2025. <span>“Benchmarking Large Language
+Models for Replication of Guideline-Based Pharmacogenomic
+Recommendations.”</span> <em>The Pharmacogenomics Journal</em>, ahead of
+print. <a
+href="https://doi.org/10.1038/s41397-025-00383-0">https://doi.org/10.1038/s41397-025-00383-0</a>.
+</div>
+<div id="ref-tippenhauer2024" class="csl-entry" role="listitem">
+<span class="nocase">Tippenhauer, K. et al.</span> 2024. <span>“Using
+the <span>PharmCAT</span> Tool for Pharmacogenetic Clinical Decision
+Support.”</span> <em>Briefings in Bioinformatics</em> 25 (1): bbad452.
+<a
+href="https://doi.org/10.1093/bib/bbad452">https://doi.org/10.1093/bib/bbad452</a>.
+</div>
+<div id="ref-whirl-carrillo2021" class="csl-entry" role="listitem">
+Whirl-Carrillo, M., R. Huddart, L. Gong, et al. 2021. <span>“An
+Evidence-Based Framework for Evaluating Pharmacogenomics Knowledge for
+Personalized Medicine.”</span> <em>Clinical Pharmacology &amp;
+Therapeutics</em> 110: 563–72. <a
+href="https://doi.org/10.1002/cpt.2350">https://doi.org/10.1002/cpt.2350</a>.
+</div>
+<div id="ref-whirl-carrillo2012" class="csl-entry" role="listitem">
+Whirl-Carrillo, M., E. M. McDonagh, J. M. Hebert, et al. 2012.
+<span>“Pharmacogenomics Knowledge for Personalized Medicine.”</span>
+<em>Clinical Pharmacology &amp; Therapeutics</em> 92 (4): 414–17. <a
+href="https://doi.org/10.1038/clpt.2012.96">https://doi.org/10.1038/clpt.2012.96</a>.
+</div>
+<div id="ref-zarin2011" class="csl-entry" role="listitem">
+Zarin, D. A., T. Tse, R. J. Williams, R. M. Califf, and N. C. Ide. 2011.
+<span>“The <span class="nocase">ClinicalTrials.gov</span> Results
+Database — Update and Key Issues.”</span> <em>New England Journal of
+Medicine</em> 364 (9): 852–60. <a
+href="https://doi.org/10.1056/NEJMsa1012065">https://doi.org/10.1056/NEJMsa1012065</a>.
+</div>
+</div>

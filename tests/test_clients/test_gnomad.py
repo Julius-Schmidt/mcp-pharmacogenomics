@@ -41,3 +41,40 @@ class TestGnomADClient:
         )
         result = await client.get_variant("1-1-A-T")
         assert result is None
+
+    @respx.mock
+    async def test_get_gene_variants(self, client: GnomADClient) -> None:
+        respx.post(BASE).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "gene": {
+                            "gene_id": "ENSG00000100197",
+                            "symbol": "CYP2D6",
+                            "variants": [
+                                {
+                                    "variant_id": "22-42126611-C-T",
+                                    "pos": 42126611,
+                                    "exome": {"ac": 100, "an": 5000, "af": 0.02},
+                                    "genome": {"ac": 50, "an": 3000, "af": 0.017},
+                                }
+                            ],
+                        }
+                    }
+                },
+            )
+        )
+        result = await client.get_gene_variants("CYP2D6")
+        assert result is not None
+        assert result["symbol"] == "CYP2D6"
+        assert len(result["variants"]) == 1
+        assert result["variants"][0]["variant_id"] == "22-42126611-C-T"
+
+    @respx.mock
+    async def test_get_gene_variants_not_found(self, client: GnomADClient) -> None:
+        respx.post(BASE).mock(
+            return_value=httpx.Response(200, json={"data": {"gene": None}})
+        )
+        result = await client.get_gene_variants("FAKEGENE")
+        assert result is None

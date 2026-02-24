@@ -89,3 +89,35 @@ class TestBaseAPIClient:
         )
         with pytest.raises(httpx.HTTPStatusError):
             await client.get("/notfound")
+
+    @respx.mock
+    async def test_retry_on_connection_error(self, client: ConcreteClient) -> None:
+        route = respx.get("https://test.example.com/conn-err")
+        route.side_effect = [
+            httpx.ConnectError("Connection refused"),
+            httpx.Response(200, json={"recovered": True}),
+        ]
+        client.RETRY_BACKOFF_BASE = 0.01
+        result = await client.get("/conn-err", use_cache=False)
+        assert result == {"recovered": True}
+        assert route.call_count == 2
+
+    @respx.mock
+    async def test_exhausted_retries_raises(self, client: ConcreteClient) -> None:
+        route = respx.get("https://test.example.com/always-fail")
+        route.side_effect = [
+            httpx.ConnectError("fail 1"),
+            httpx.ConnectError("fail 2"),
+            httpx.ConnectError("fail 3"),
+        ]
+        client.RETRY_BACKOFF_BASE = 0.01
+        with pytest.raises(RuntimeError, match="Failed after 3 retries"):
+            await client.get("/always-fail", use_cache=False)
+
+    @respx.mock
+    async def test_post_success(self, client: ConcreteClient) -> None:
+        respx.post("https://test.example.com/api").mock(
+            return_value=httpx.Response(200, json={"result": "ok"})
+        )
+        result = await client.post("/api", json={"query": "test"})
+        assert result == {"result": "ok"}

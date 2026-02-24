@@ -53,3 +53,69 @@ class TestOpenTargetsClient:
         )
         results = await client.search("nonexistentdrug12345")
         assert results == []
+
+    @respx.mock
+    async def test_get_target(self, client: OpenTargetsClient) -> None:
+        respx.post(BASE).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "target": {
+                            "id": "ENSG00000112038",
+                            "approvedSymbol": "OPRM1",
+                            "approvedName": "opioid receptor mu 1",
+                            "biotype": "protein_coding",
+                            "tractability": [
+                                {"label": "High quality pocket", "modality": "SM", "value": True}
+                            ],
+                        }
+                    }
+                },
+            )
+        )
+        result = await client.get_target("ENSG00000112038")
+        assert result is not None
+        assert result["approvedSymbol"] == "OPRM1"
+        assert result["biotype"] == "protein_coding"
+
+    @respx.mock
+    async def test_get_target_not_found(self, client: OpenTargetsClient) -> None:
+        respx.post(BASE).mock(
+            return_value=httpx.Response(200, json={"data": {"target": None}})
+        )
+        result = await client.get_target("ENSG00000000000")
+        assert result is None
+
+    @respx.mock
+    async def test_get_target_disease_associations(self, client: OpenTargetsClient) -> None:
+        respx.post(BASE).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "target": {
+                            "id": "ENSG00000112038",
+                            "approvedSymbol": "OPRM1",
+                            "associatedDiseases": {
+                                "count": 1,
+                                "rows": [
+                                    {
+                                        "disease": {"id": "EFO_0003843", "name": "pain"},
+                                        "score": 0.75,
+                                        "datatypeScores": [
+                                            {"id": "known_drug", "score": 0.9}
+                                        ],
+                                    }
+                                ],
+                            },
+                        }
+                    }
+                },
+            )
+        )
+        result = await client.get_target_disease_associations("ENSG00000112038", size=5)
+        assert result is not None
+        assert result["approvedSymbol"] == "OPRM1"
+        assert result["associatedDiseases"]["count"] == 1
+        assert result["associatedDiseases"]["rows"][0]["disease"]["name"] == "pain"
