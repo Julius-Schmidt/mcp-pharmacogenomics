@@ -1,0 +1,34 @@
+{
+  "data": {
+    "variant": {
+      "variant_id": "22-42126611-C-T",
+      "reference_genome": "GRCh38",
+      "chrom": "22",
+      "pos": 42126611,
+      "ref": "C",
+      "alt": "T",
+      "exome": {
+        "ac": 8500,
+        "an": 250000,
+        "af": 0.034,
+        "ac_hom": 350,
+        "populations": [
+          {"id": "afr", "ac": 200, "an": 16000, "ac_hom": 5},
+          {"id": "eur", "ac": 5000, "an": 130000, "ac_hom": 250},
+          {"id": "eas", "ac": 100, "an": 20000, "ac_hom": 2},
+          {"id": "sas", "ac": 1500, "an": 30000, "ac_hom": 40}
+        ]
+      },
+      "genome": {
+        "ac": 2300,
+        "an": 150000,
+        "af": 0.0153,
+        "ac_hom": 80,
+        "populations": [
+          {"id": "afr", "ac": 100, "an": 40000, "ac_hom": 2},
+          {"id": "eur", "ac": 1500, "an": 70000, "ac_hom": 60}
+        ]
+      }
+    }
+  }
+}

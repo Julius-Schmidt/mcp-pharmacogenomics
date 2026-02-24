@@ -1,0 +1,40 @@
+{
+  "totalCount": 2,
+  "studies": [
+    {
+      "protocolSection": {
+        "identificationModule": {
+          "nctId": "NCT04267848",
+          "briefTitle": "Pharmacogenomics-Guided Codeine Prescribing in Pain Management",
+          "officialTitle": "A Randomized Study of PGx-Guided vs Standard Codeine Prescribing"
+        },
+        "statusModule": {
+          "overallStatus": "RECRUITING"
+        },
+        "designModule": {
+          "phases": ["PHASE3"]
+        },
+        "descriptionModule": {
+          "briefSummary": "This study evaluates the impact of pharmacogenomics-guided codeine prescribing on pain outcomes and adverse events in patients with CYP2D6 variants."
+        }
+      }
+    },
+    {
+      "protocolSection": {
+        "identificationModule": {
+          "nctId": "NCT05123456",
+          "briefTitle": "CYP2D6 Genotyping in Post-Surgical Pain"
+        },
+        "statusModule": {
+          "overallStatus": "NOT_YET_RECRUITING"
+        },
+        "designModule": {
+          "phases": ["PHASE2"]
+        },
+        "descriptionModule": {
+          "briefSummary": "Evaluating pre-surgical CYP2D6 genotyping for personalized analgesic selection."
+        }
+      }
+    }
+  ]
+}

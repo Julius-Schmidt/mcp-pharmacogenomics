@@ -1,0 +1,27 @@
+{
+  "result": {
+    "uids": ["12345", "12346"],
+    "12345": {
+      "uid": "12345",
+      "title": "NM_000106.6(CYP2D6):c.506-1G>A",
+      "clinical_significance": {
+        "description": "Pathogenic",
+        "review_status": "reviewed by expert panel"
+      },
+      "trait_set": [
+        {"trait_name": "Codeine poor metabolism"}
+      ]
+    },
+    "12346": {
+      "uid": "12346",
+      "title": "NM_000106.6(CYP2D6):c.100C>T",
+      "clinical_significance": {
+        "description": "Likely pathogenic",
+        "review_status": "criteria provided, single submitter"
+      },
+      "trait_set": [
+        {"trait_name": "CYP2D6-related poor drug metabolism"}
+      ]
+    }
+  }
+}

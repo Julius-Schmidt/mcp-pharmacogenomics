@@ -1,0 +1,32 @@
+{
+  "data": [
+    {
+      "id": 1449309937,
+      "levelOfEvidence": {
+        "id": 827923052,
+        "term": "1A"
+      },
+      "types": ["Toxicity/ADR", "Efficacy"],
+      "location": {
+        "displayName": "CYP2D6*4",
+        "genes": [{"symbol": "CYP2D6", "id": "PA128"}]
+      },
+      "relatedChemicals": [{"name": "codeine", "id": "PA449088"}],
+      "name": "CYP2D6*4; codeine (level 1A Toxicity/ADR, Efficacy)"
+    },
+    {
+      "id": 1449309938,
+      "levelOfEvidence": {
+        "id": 827923053,
+        "term": "1B"
+      },
+      "types": ["Metabolism/PK"],
+      "location": {
+        "displayName": "CYP2D6*1, CYP2D6*4",
+        "genes": [{"symbol": "CYP2D6", "id": "PA128"}]
+      },
+      "relatedChemicals": [{"name": "codeine", "id": "PA449088"}],
+      "name": "CYP2D6*1, CYP2D6*4; codeine (level 1B Metabolism/PK)"
+    }
+  ]
+}

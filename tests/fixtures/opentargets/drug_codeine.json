@@ -1,0 +1,41 @@
+{
+  "data": {
+    "drug": {
+      "id": "CHEMBL174174",
+      "name": "CODEINE",
+      "drugType": "Small molecule",
+      "mechanismsOfAction": {
+        "rows": [
+          {
+            "mechanismOfAction": "Opioid receptor agonist",
+            "targets": [
+              {"id": "ENSG00000112038", "approvedSymbol": "OPRM1"}
+            ]
+          }
+        ]
+      },
+      "indications": {
+        "rows": [
+          {
+            "disease": {"id": "EFO_0003843", "name": "pain"},
+            "maxPhaseForIndication": 4
+          }
+        ]
+      },
+      "pharmacogenomics": [
+        {
+          "variantRsId": "rs3892097",
+          "genotype": "CC",
+          "variantFunctionalConsequenceId": "SO_0001583",
+          "phenotypeText": "decreased function",
+          "isDirectTarget": false,
+          "genotypeAnnotationText": "poor metabolizer",
+          "literature": ["PMID:12172392"],
+          "pgxCategory": "metabolizer status",
+          "targetFromSourceId": "CYP2D6",
+          "evidenceLevel": "1A"
+        }
+      ]
+    }
+  }
+}

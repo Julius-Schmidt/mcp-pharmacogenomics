@@ -1,0 +1,15 @@
+{
+  "data": {
+    "search": {
+      "total": 1,
+      "hits": [
+        {
+          "id": "CHEMBL174174",
+          "entity": "drug",
+          "name": "CODEINE",
+          "description": "An opioid analgesic"
+        }
+      ]
+    }
+  }
+}
