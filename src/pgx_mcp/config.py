@@ -21,4 +21,4 @@ class Settings(BaseSettings):
     opentargets_rate_limit: float = 5.0  # OpenTargets: no published limit
     clinical_trials_rate_limit: float = 0.7  # CT.gov: ~50/min
 
-    model_config = {"env_prefix": "PGX_MCP_"}
+    model_config = {"env_prefix": "PGX_MCP_", "env_file": ".env", "env_file_encoding": "utf-8"}
