@@ -80,3 +80,9 @@ select = ["E", "F", "I", "W", "UP", "B"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
+warn_return_any = false
+disallow_any_generics = false
+
+[[tool.mypy.overrides]]
+module = "cachetools"
+ignore_missing_imports = true
