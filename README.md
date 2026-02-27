@@ -1,6 +1,14 @@
 # pgx-mcp
 
+[![CI](https://github.com/Julius-Schmidt/mcp-pharmacogenomics/actions/workflows/ci.yml/badge.svg)](https://github.com/Julius-Schmidt/mcp-pharmacogenomics/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/pgx-mcp)](https://pypi.org/project/pgx-mcp/)
+[![Python](https://img.shields.io/pypi/pyversions/pgx-mcp)](https://pypi.org/project/pgx-mcp/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 An open-source MCP server that gives Claude real-time access to pharmacogenomics databases — turning genetic variant lookups and drug interaction checks from a 45-minute manual workflow into a single conversation.
+
+<!-- TODO: Add demo GIF/video here -->
+<!-- ![Demo](assets/demo.gif) -->
 
 ## Features
 
@@ -77,11 +85,11 @@ Ask Claude:
 
 ## Configuration
 
-All settings are optional and configured via environment variables:
+All settings are optional and configured via environment variables (or a `.env` file):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PGX_MCP_NCBI_API_KEY` | None | NCBI API key for higher ClinVar rate limits |
+| `PGX_MCP_NCBI_API_KEY` | None | NCBI API key for higher ClinVar rate limits (3/s → 9/s) |
 | `PGX_MCP_CACHE_TTL_SECONDS` | 3600 | Cache duration in seconds |
 
 ## Development
@@ -92,6 +100,13 @@ cd mcp-pharmacogenomics
 pip install -e ".[dev]"
 pytest
 ```
+
+## Roadmap
+
+- [ ] Demo video/GIF in README
+- [ ] EU Clinical Trials Register integration (currently no public API — European trials are covered through ClinicalTrials.gov registrations)
+- [ ] PharmVar star-allele nomenclature lookups
+- [ ] FDA Pharmacogenomic Biomarkers table integration
 
 ## License
 
